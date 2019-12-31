@@ -4,13 +4,15 @@ import router from "./router";
 import store from "./store";
 import axios from "./http";
 import ElementUI from "element-ui";
+import moment from "moment";
 import "element-ui/lib/theme-chalk/index.css";
 
 import "./assets/css/reset.css";
 
 Vue.use(ElementUI);
-axios.defaults.baseURL = "http://pre.junbaob2b.com/distributer/";
+axios.defaults.baseURL = "http://ymvsnd.natappfree.cc/claims/";
 Vue.prototype.$axios = axios;
+Vue.prototype.$moment = moment;
 Vue.config.productionTip = false;
 
 new Vue({
