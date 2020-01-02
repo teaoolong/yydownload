@@ -10,7 +10,8 @@ import "element-ui/lib/theme-chalk/index.css";
 import "./assets/css/reset.css";
 
 Vue.use(ElementUI);
-axios.defaults.baseURL = "http://ymvsnd.natappfree.cc/claims/";
+// axios.defaults.baseURL = "http://47.92.107.201:8080/tempstatistics/";
+axios.defaults.baseURL = "http://9pimv3.natappfree.cc/tempstatistics/";
 Vue.prototype.$axios = axios;
 Vue.prototype.$moment = moment;
 Vue.config.productionTip = false;
