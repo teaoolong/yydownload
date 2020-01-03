@@ -3,7 +3,8 @@
     <div class="title" id="title">
       <h3>
         钧保 API 保单信息查询下载
-        <a @click="getLogin">点击登入</a>
+        <a @click="getLogin" v-if="sessionId==''">点击登入</a>
+        <span v-else>已登入</span>
       </h3>
     </div>
     <div class="search_wrap" id="search_wrap">
@@ -102,11 +103,20 @@
               <el-form-item label="产品名称">
                 <span>{{ props.row.productName }}</span>
               </el-form-item>
-              <el-form-item label="保险公司名称">
+              <el-form-item label="保险公司名称" v-if="props.row.companyName">
                 <span>{{ props.row.companyName }}</span>
               </el-form-item>
-              <el-form-item label="渠道名称">
+              <el-form-item label="渠道名称" v-if="props.row.merchantName">
                 <span>{{ props.row.merchantName }}</span>
+              </el-form-item>
+              <el-form-item label="保单地址" v-if="props.row.epolicyUrl">
+                <a :href="props.row.epolicyUrl" target="_epolicy" class="epolicy_url">点击跳转</a>
+              </el-form-item>
+              <el-form-item class="insure_result" label="投保结果" v-if="props.row.insureResult">
+                <span>{{ props.row.insureResult }}</span>
+              </el-form-item>
+              <el-form-item label="失败信息" v-if="props.row.errorMsg">
+                <span>{{ props.row.errorMsg }}</span>
               </el-form-item>
             </el-form>
           </template>
@@ -184,7 +194,8 @@
       >
         <el-form-item label="邮箱">
           xiaolin@junbaob2b.com
-          <a class="email_code" @click="getCode">点击获取验证码</a>
+          <a class="email_code" @click="getCode" v-if="canGetCode">点击获取验证码</a>
+          <span class="email_code_span" v-else>正在获取中...</span>
         </el-form-item>
         <el-form-item label="验证码" prop="code">
           <el-input v-model="formLogin.code" placeholder="请输入验证码" clearable></el-input>
@@ -202,6 +213,7 @@
 export default {
   data() {
     return {
+      canGetCode: true,
       sessionId: "",
       rules: {
         code: [
@@ -254,14 +266,23 @@ export default {
       ]
     };
   },
+  created() {
+    if (sessionStorage.sessionId) {
+      this.sessionId = sessionStorage.sessionId;
+      this.getOptions();
+    }
+  },
 
   methods: {
     getCode() {
+      this.canGetCode = false;
       this.$axios.post("/login/sendEmail").then(res => {
         if (res.status == 200 && res.data.code == 200) {
           this.$message.success("发送成功");
+          this.canGetCode = true;
         } else {
           this.$message.error(res.data.msg);
+          this.canGetCode = true;
         }
       });
     },
@@ -276,6 +297,8 @@ export default {
             .then(res => {
               if (res.status == 200 && res.data.code == 200) {
                 this.sessionId = res.data.data;
+                sessionStorage.setItem("sessionId", res.data.data);
+                this.title = "已登入";
                 this.dialogFormVisible = false;
                 this.getOptions();
               } else {
@@ -356,21 +379,53 @@ export default {
             this.merchantOptions = res.data.data.merchantList;
             this.getTableData();
           } else {
-            this.$message.error(res.data.msg);
+            if (res.data.code == "10000") {
+              this.sessionId = "";
+              this.tableData = null;
+              this.searchFormCopy = this.searchForm = {
+                databaseValue: "travel",
+                proName: "",
+                policyNo: "",
+                companyName: "",
+                merchantName: "",
+                orderNo: "",
+                createdTime: "",
+                start: "",
+                end: ""
+              };
+            } else {
+              this.$message.error(res.data.msg);
+            }
           }
         });
     },
     getTableData() {
       this.$axios
         .get(
-          `/policy/list?dataSource=${this.searchFormCopy.databaseValue}&pageSize=${this.paginations.page_size}&pageNum=${this.paginations.page_index}&merchantOrderNo=${this.searchFormCopy.orderNo}&policyNo=${this.searchFormCopy.policyNo}&createTimeEnd=${this.searchFormCopy.end}&productCode=${this.searchFormCopy.proName}&companyCode=${this.searchFormCopy.companyName}&merchantNo=${this.searchFormCopy.merchantName}&createTimeStart=${this.searchFormCopy.start}`
+          `/policy/list?dataSource=${this.searchFormCopy.databaseValue}&pageSize=${this.paginations.page_size}&pageNum=${this.paginations.page_index}&merchantOrderNo=${this.searchFormCopy.orderNo}&policyNo=${this.searchFormCopy.policyNo}&createTimeEnd=${this.searchFormCopy.end}&productCode=${this.searchFormCopy.proName}&companyCode=${this.searchFormCopy.companyName}&merchantNo=${this.searchFormCopy.merchantName}&createTimeStart=${this.searchFormCopy.start}&sessionId=${this.sessionId}`
         )
         .then(res => {
           if (res.status == 200 && res.data.code == "200") {
             this.tableData = res.data.data.policyList;
             this.paginations.total = res.data.data.total;
           } else {
-            this.$message.error(res.data.msg);
+            if (res.data.code == "10000") {
+              this.sessionId = "";
+              this.tableData = null;
+              this.searchFormCopy = this.searchForm = {
+                databaseValue: "travel",
+                proName: "",
+                policyNo: "",
+                companyName: "",
+                merchantName: "",
+                orderNo: "",
+                createdTime: "",
+                start: "",
+                end: ""
+              };
+            } else {
+              this.$message.error(res.data.msg);
+            }
           }
         });
     },
@@ -399,6 +454,10 @@ export default {
     color: #fff;
     a {
       cursor: pointer;
+      font-size: 14px;
+      float: right;
+    }
+    span {
       font-size: 14px;
       float: right;
     }
@@ -492,7 +551,7 @@ export default {
   }
   table {
     .el-table__expanded-cell {
-      padding: 10px 30px;
+      padding: 10px 30px 20px;
     }
   }
   .demo-table-expand {
@@ -506,11 +565,30 @@ export default {
     margin-right: 0;
     margin-bottom: 0;
     width: 100%;
+    height: 28px;
+  }
+  .demo-table-expand .insure_result {
+    height: initial;
+    .el-form-item__content {
+      max-width: 1050px;
+      word-break: break-all;
+      line-height: 20px;
+      margin-top: 8px;
+    }
   }
   .email_code {
     color: #409eff;
     cursor: pointer;
     margin-left: 40px;
+  }
+  .email_code_span {
+    margin-left: 40px;
+    color: #909399;
+  }
+  .epolicy_url {
+    color: #409eff;
+    cursor: pointer;
+    text-decoration: none;
   }
   .el-dialog--center .el-dialog__body {
     padding-bottom: 10px;

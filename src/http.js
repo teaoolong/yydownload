@@ -28,6 +28,12 @@ axios.interceptors.request.use(
 axios.interceptors.response.use(
   response => {
     endLoading();
+    if (response.data.code == "10000") {
+      Message.error("登入已过期,请重新登入");
+      if (sessionStorage.sessionId) {
+        sessionStorage.removeItem("sessionId");
+      }
+    }
     return response;
   },
   err => {
