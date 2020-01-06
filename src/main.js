@@ -12,6 +12,7 @@ import "./assets/css/reset.css";
 Vue.use(ElementUI);
 // axios.defaults.baseURL = "http://47.92.107.201:8080/tempstatistics/";
 axios.defaults.baseURL = "http://47.94.18.183:8088/tempstatistics/";
+// axios.defaults.baseURL = "http://192.168.1.111:8080/tempstatistics/";
 // axios.defaults.baseURL = "http://tk356m.natappfree.cc/tempstatistics/";
 Vue.prototype.$axios = axios;
 Vue.prototype.$moment = moment;

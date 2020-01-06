@@ -64,6 +64,17 @@
             ></el-option>
           </el-select>
         </el-form-item>
+        <!-- 保单状态 -->
+        <el-form-item label="保单状态">
+          <el-select v-model="searchForm.policyStatus" placeholder="请选择保单状态">
+            <el-option
+              v-for="item in policyStatusOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            ></el-option>
+          </el-select>
+        </el-form-item>
         <!-- 保单号筛选 -->
         <el-form-item label="保单号">
           <el-input placeholder="请输入保单号" v-model="searchForm.policyNo" class="input_with_select"></el-input>
@@ -74,16 +85,28 @@
         </el-form-item>
         <el-form-item label="时间" id="timePick">
           <el-date-picker
-            v-model="searchForm.createdTime"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
+            v-model="searchForm.start"
+            type="date"
+            placeholder="开始日期"
             @change="getStartTime"
+            :picker-options="pickerOptions1"
+          ></el-date-picker>-
+          <el-date-picker
+            v-model="searchForm.end"
+            type="date"
+            placeholder="结束日期"
+            @change="getEndTime"
+            :disabled="searchForm.start =='' || !searchForm.start"
+            :picker-options="pickerOptions"
           ></el-date-picker>
         </el-form-item>
 
-        <el-button class="fr mr2" plain @click="getExcel" :disabled="!tableData">导出表格</el-button>
+        <el-button
+          class="fr mr2"
+          plain
+          @click="getExcel"
+          :disabled="!tableData||tableData.length==0"
+        >导出表格</el-button>
         <el-button class="fr mr" type="primary" plain @click="resetSel" :disabled="sessionId==''">重置</el-button>
         <el-button
           class="fr"
@@ -213,6 +236,11 @@
 export default {
   data() {
     return {
+      pickerOptions1: {
+        disabledDate(time) {
+          return time > new Date();
+        }
+      },
       canGetCode: true,
       sessionId: "",
       rules: {
@@ -225,6 +253,18 @@ export default {
           }
         ]
       },
+      policyStatusOptions: [
+        { value: 20, label: "已生效" },
+        { value: 30, label: "已退保" },
+        { value: 5, label: "已核保" },
+        { value: 10, label: "已承保" },
+        { value: 25, label: "退保中" },
+        { value: 40, label: "已到期" },
+        { value: 45, label: "理赔中" },
+        { value: 50, label: "已理赔" },
+        { value: 60, label: "承保失败" },
+        { value: 70, label: "核保失败" }
+      ],
       formLogin: { code: "" },
       dialogFormVisible: false,
       paginations: {
@@ -242,9 +282,9 @@ export default {
         companyName: "",
         merchantName: "",
         orderNo: "",
-        createdTime: "",
         start: "",
-        end: ""
+        end: "",
+        policyStatus: ""
       },
       searchFormCopy: {
         databaseValue: "travel",
@@ -253,9 +293,9 @@ export default {
         companyName: "",
         merchantName: "",
         orderNo: "",
-        createdTime: "",
         start: "",
-        end: ""
+        end: "",
+        policyStatus: ""
       },
       proOptions: [{ productName: "", junbaoCode: "" }],
       companyOptions: [{ companyCode: "", companyName: "" }],
@@ -271,8 +311,25 @@ export default {
       this.sessionId = sessionStorage.sessionId;
       this.getOptions();
     }
+    this.searchFormCopy.start = this.searchFormCopy.end = this.searchForm.start = this.searchForm.end = this.$moment().format(
+      "YYYY-MM-DD"
+    );
   },
-
+  computed: {
+    pickerOptions: function() {
+      let obj = {};
+      obj.disabledDate = time => {
+        return (
+          this.$moment(time).isBefore(this.$moment(this.searchForm.start)) ||
+          this.$moment(time).isAfter(
+            this.$moment(this.searchForm.start).add(90, "days")
+          ) ||
+          this.$moment(time).isAfter(this.$moment())
+        );
+      };
+      return obj;
+    }
+  },
   methods: {
     getCode() {
       this.canGetCode = false;
@@ -300,6 +357,7 @@ export default {
                 sessionStorage.setItem("sessionId", res.data.data);
                 this.title = "已登入";
                 this.dialogFormVisible = false;
+
                 this.getOptions();
               } else {
                 this.$message.error(res.data.msg);
@@ -314,7 +372,7 @@ export default {
     getExcel() {
       if (this.tableData && this.tableData.length > 0) {
         window.open(
-          `${this.$axios.defaults.baseURL}policyList/downLoad?dataSource=${this.searchFormCopy.databaseValue}&pageSize=${this.paginations.page_size}&pageNum=${this.paginations.page_index}&merchantOrderNo=${this.searchFormCopy.orderNo}&policyNo=${this.searchFormCopy.policyNo}&createTimeEnd=${this.searchFormCopy.end}&productCode=${this.searchFormCopy.proName}&companyCode=${this.searchFormCopy.companyName}&merchantNo=${this.searchFormCopy.merchantName}&createTimeStart=${this.searchFormCopy.start}&sessionId=${this.sessionId}`
+          `${this.$axios.defaults.baseURL}policyList/downLoad?dataSource=${this.searchFormCopy.databaseValue}&pageSize=${this.paginations.page_size}&pageNum=${this.paginations.page_index}&merchantOrderNo=${this.searchFormCopy.orderNo}&policyNo=${this.searchFormCopy.policyNo}&createTimeEnd=${this.searchFormCopy.end}&productCode=${this.searchFormCopy.proName}&companyCode=${this.searchFormCopy.companyName}&merchantNo=${this.searchFormCopy.merchantName}&createTimeStart=${this.searchFormCopy.start}&sessionId=${this.sessionId}&policyStatus=${this.searchFormCopy.policyStatus}`
         );
       }
     },
@@ -330,7 +388,7 @@ export default {
         companyName: "",
         merchantName: "",
         orderNo: "",
-        createdTime: "",
+        policyStatus: "",
         start: "",
         end: ""
       };
@@ -338,6 +396,9 @@ export default {
       this.getTableData();
     },
     submitSel() {
+      if (this.searchForm.start == "" || this.searchForm.end == "") {
+        return this.$message.error("请选择开始日期和结束日期");
+      }
       this.searchFormCopy = JSON.parse(JSON.stringify(this.searchForm));
       this.setPaginations();
       this.getTableData();
@@ -359,14 +420,13 @@ export default {
         companyName: "",
         merchantName: "",
         orderNo: "",
-        createdTime: "",
+        policyStatus: "",
         start: "",
         end: ""
       };
       this.setPaginations();
       this.getOptions();
     },
-    postSearchCon() {},
     getOptions() {
       this.$axios
         .get(
@@ -389,7 +449,7 @@ export default {
                 companyName: "",
                 merchantName: "",
                 orderNo: "",
-                createdTime: "",
+                policyStatus: "",
                 start: "",
                 end: ""
               };
@@ -402,7 +462,7 @@ export default {
     getTableData() {
       this.$axios
         .get(
-          `/policy/list?dataSource=${this.searchFormCopy.databaseValue}&pageSize=${this.paginations.page_size}&pageNum=${this.paginations.page_index}&merchantOrderNo=${this.searchFormCopy.orderNo}&policyNo=${this.searchFormCopy.policyNo}&createTimeEnd=${this.searchFormCopy.end}&productCode=${this.searchFormCopy.proName}&companyCode=${this.searchFormCopy.companyName}&merchantNo=${this.searchFormCopy.merchantName}&createTimeStart=${this.searchFormCopy.start}&sessionId=${this.sessionId}`
+          `/policy/list?dataSource=${this.searchFormCopy.databaseValue}&pageSize=${this.paginations.page_size}&pageNum=${this.paginations.page_index}&merchantOrderNo=${this.searchFormCopy.orderNo}&policyNo=${this.searchFormCopy.policyNo}&createTimeEnd=${this.searchFormCopy.end}&productCode=${this.searchFormCopy.proName}&companyCode=${this.searchFormCopy.companyName}&merchantNo=${this.searchFormCopy.merchantName}&createTimeStart=${this.searchFormCopy.start}&sessionId=${this.sessionId}&policyStatus=${this.searchFormCopy.policyStatus}`
         )
         .then(res => {
           if (res.status == 200 && res.data.code == "200") {
@@ -419,7 +479,7 @@ export default {
                 companyName: "",
                 merchantName: "",
                 orderNo: "",
-                createdTime: "",
+                policyStatus: "",
                 start: "",
                 end: ""
               };
@@ -431,10 +491,17 @@ export default {
     },
     getStartTime(val) {
       if (val) {
-        this.searchForm.start = this.$moment(val[0]).format("YYYY-MM-DD");
-        this.searchForm.end = this.$moment(val[1]).format("YYYY-MM-DD");
+        this.searchForm.start = this.$moment(val).format("YYYY-MM-DD");
+        this.searchForm.end = "";
       } else {
         this.searchForm.start = "";
+        this.searchForm.end = "";
+      }
+    },
+    getEndTime(val) {
+      if (val) {
+        this.searchForm.end = this.$moment(val).format("YYYY-MM-DD");
+      } else {
         this.searchForm.end = "";
       }
     }
@@ -484,7 +551,14 @@ export default {
   }
   #timePick {
     .el-input__inner {
-      width: 256px;
+      width: 134px;
+    }
+    .el-date-editor.el-input,
+    .el-date-editor.el-input__inner {
+      width: 138px;
+    }
+    .el-form-item__content {
+      width: 290px;
     }
   }
   .fr {
